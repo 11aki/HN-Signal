@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(scp:*)",
+      "Bash(pip show:*)",
+      "Bash(python -c \"import platform; print\\(platform.architecture\\(\\)\\)\")",
+      "Bash(pip uninstall:*)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(ls:*)",
+      "Bash(pg_isready)",
+      "Bash(docker info:*)",
+      "Bash(docker run:*)",
+      "Bash(docker exec:*)",
+      "Bash(curl:*)"
+    ]
+  }
+}

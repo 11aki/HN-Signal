@@ -1,0 +1,2 @@
+# Run the collector every hour at :00
+0 * * * * python /app/collector/collect.py

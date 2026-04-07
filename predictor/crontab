@@ -1,0 +1,3 @@
+# Run 5 minutes after the collector so new stories are already in the DB
+# Collector runs at :00, so predictor runs at :05
+5 * * * * python /app/predictor/predict.py

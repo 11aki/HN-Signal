@@ -1,0 +1,2 @@
+# Run the snapshotter every hour at :00 (same time as collector)
+0 * * * * python /app/snapshotter/snapshot.py
