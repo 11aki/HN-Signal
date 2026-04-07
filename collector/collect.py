@@ -182,7 +182,7 @@ def insert_story(conn, row: dict) -> bool:
 # ---------------------------------------------------------------------------
 
 def run():
-    log.info("Collector starting")
+    log.info("Collector starting v2")
 
     # Step 1: get the list of newest story IDs from HN
     ids = fetch_new_story_ids()
