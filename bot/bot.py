@@ -12,7 +12,7 @@ import os
 import sys
 
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from shared.db import get_conn
@@ -191,6 +191,14 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="Markdown")
 
 
+async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    cmd = update.message.text.split()[0] if update.message.text else "that"
+    await update.message.reply_text(
+        f"`{cmd}` did nothing — try /help to see available commands.",
+        parse_mode="Markdown",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -201,6 +209,7 @@ def run():
     app.add_handler(CommandHandler("top", cmd_top))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(MessageHandler(filters.COMMAND, unknown_command))
     log.info("Polling for updates")
     app.run_polling()
 
