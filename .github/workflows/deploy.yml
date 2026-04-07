@@ -17,5 +17,6 @@ jobs:
           script: |
             cd ~/hn-signal
             git pull origin main
+            docker system prune -af
             docker compose up --build -d
             docker compose ps
