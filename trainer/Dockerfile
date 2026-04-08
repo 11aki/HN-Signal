@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     chmod +x /usr/local/bin/supercronic && \
     rm -rf /var/lib/apt/lists/*
 COPY trainer/requirements.txt .
-RUN pip install -r requirements.txt --quiet
+RUN pip install --no-cache-dir -r requirements.txt --quiet
 
 COPY shared/ ./shared/
 COPY trainer/ ./trainer/
