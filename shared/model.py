@@ -15,14 +15,14 @@ import pickle
 from pathlib import Path
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-# The sentence-transformer model to use for title embeddings.
-# all-MiniLM-L6-v2 is small (~90MB), fast, and good enough for this task.
-SENTENCE_MODEL = "all-MiniLM-L6-v2"
+# fastembed runs all-MiniLM-L6-v2 via ONNX Runtime (~25MB) instead of PyTorch (~700MB).
+# Same model weights, same 384-dim embeddings, fraction of the size.
+SENTENCE_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 class HNModel:
@@ -31,7 +31,7 @@ class HNModel:
 
     Why combine both?
     - Tabular features (score, time, keywords) are fast and interpretable
-    - Title embeddings capture meaning that keywords miss
+    - Title embeddings capture semantic meaning that keywords miss
     - Together they're stronger than either alone
     """
 
@@ -40,8 +40,8 @@ class HNModel:
         # C controls regularisation strength in logistic regression.
         # Lower C = simpler model (less overfitting). Default 1.0 is a safe start.
         self.C = C
-        self.encoder: SentenceTransformer | None = None  # set during fit()
-        self.clf: Pipeline | None = None                 # set during fit()
+        self.encoder: TextEmbedding | None = None  # set during fit()
+        self.clf: Pipeline | None = None           # set during fit()
 
     def fit(self, X_tab: np.ndarray, titles: list[str], y: np.ndarray):
         """
@@ -51,9 +51,8 @@ class HNModel:
         titles: list of N story titles
         y: binary labels, 1 = blew up, 0 = didn't
         """
-        # Load the sentence transformer and encode all titles into vectors
-        self.encoder = SentenceTransformer(self.transformer_name)
-        X_emb = self.encoder.encode(titles, show_progress_bar=True, batch_size=64)
+        self.encoder = TextEmbedding(self.transformer_name)
+        X_emb = np.array(list(self.encoder.embed(titles)))
 
         # Stack tabular features and embeddings side-by-side into one matrix
         X = np.hstack([X_tab, X_emb])
@@ -70,14 +69,24 @@ class HNModel:
     def predict_proba(self, X_tab: np.ndarray, titles: list[str]) -> np.ndarray:
         """
         Return blow-up probability for each story (values between 0.0 and 1.0).
-
-        Uses the same encoder fitted during training — never re-downloads the model.
         """
-        X_emb = self.encoder.encode(titles, show_progress_bar=False, batch_size=64)
+        X_emb = np.array(list(self.encoder.embed(titles)))
         X = np.hstack([X_tab, X_emb])
         # predict_proba returns [[prob_negative, prob_positive], ...]
         # We only want the positive (blow-up) probability, hence [:, 1]
         return self.clf.predict_proba(X)[:, 1]
+
+    def __getstate__(self):
+        # ONNX InferenceSession is not picklable — exclude it.
+        # The encoder is re-initialized from the baked-in model cache on load.
+        state = self.__dict__.copy()
+        state["encoder"] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        if self.transformer_name:
+            self.encoder = TextEmbedding(self.transformer_name)
 
 
 def save_artifact(model: "HNModel", version: str, path: Path):

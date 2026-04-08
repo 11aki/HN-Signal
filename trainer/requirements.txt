@@ -2,6 +2,4 @@ psycopg2-binary==2.9.9
 requests==2.31.0
 numpy==1.26.4
 scikit-learn==1.4.2
-sentence-transformers==2.7.0
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.3.0+cpu
+fastembed==0.4.2

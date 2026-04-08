@@ -26,7 +26,6 @@ from shared.features import build_feature_dict, feature_names
 from shared.model import HNModel, save_artifact
 
 BLOWUP_SCORE_THRESHOLD = int(os.environ.get("BLOWUP_SCORE_THRESHOLD", "200"))
-SENTENCE_MODEL = "all-MiniLM-L6-v2"
 
 logging.basicConfig(
     level=logging.INFO,
