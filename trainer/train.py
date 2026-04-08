@@ -23,6 +23,7 @@ from pathlib import Path
 
 import mlflow
 import numpy as np
+import requests
 from sklearn.metrics import classification_report, precision_score, recall_score
 from sklearn.model_selection import train_test_split
 
@@ -121,11 +122,27 @@ def make_version() -> str:
     return datetime.now(timezone.utc).strftime("v%Y%m%d-%H%M%S")
 
 
+def send_telegram(message: str):
+    token = os.environ.get("TELEGRAM_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        log.warning("TELEGRAM_TOKEN/CHAT_ID not set — skipping notification")
+        return
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": message, "parse_mode": "Markdown"},
+            timeout=10,
+        ).raise_for_status()
+    except Exception as e:
+        log.warning("Telegram notification failed: %s", e)
+
+
 def scp_to_ec2(local_path: Path, ec2_target: str):
     """ec2_target e.g. 'ubuntu@1.2.3.4:/models/production.pkl'"""
     log.info("Deploying model to %s", ec2_target)
     result = subprocess.run(
-        ["scp", str(local_path), ec2_target],
+        ["scp", "-i", os.path.expanduser("~/.ssh/ai-bot-key.pem"), "-o", "StrictHostKeyChecking=no", str(local_path), ec2_target],
         check=True,
         capture_output=True,
         text=True,
@@ -196,24 +213,40 @@ def run():
         # Eval gate
         if precision < args.min_precision:
             log.error("Precision %.3f < threshold %.3f — not deploying", precision, args.min_precision)
+            send_telegram(
+                f"*HN Signal — Training Failed* \u274c\n"
+                f"Eval gate not met\n"
+                f"Precision: `{precision:.3f}` (min {args.min_precision})\n"
+                f"Recall: `{recall:.3f}`\n"
+                f"Training stories: {len(rows)}"
+            )
             sys.exit(1)
         if recall < args.min_recall:
             log.error("Recall %.3f < threshold %.3f — not deploying", recall, args.min_recall)
+            send_telegram(
+                f"*HN Signal — Training Failed* \u274c\n"
+                f"Eval gate not met\n"
+                f"Precision: `{precision:.3f}`\n"
+                f"Recall: `{recall:.3f}` (min {args.min_recall})\n"
+                f"Training stories: {len(rows)}"
+            )
             sys.exit(1)
 
         log.info("Eval gate passed (precision=%.3f, recall=%.3f)", precision, recall)
 
         # Save
         version = make_version()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            artifact_path = Path(tmpdir) / "production.pkl"
-            save_artifact(model, version, artifact_path)
-            mlflow.log_artifact(str(artifact_path))
+        artifact_path = Path("/models/production.pkl")
+        save_artifact(model, version, artifact_path)
+        mlflow.log_artifact(str(artifact_path))
 
-            if args.ec2:
-                scp_to_ec2(artifact_path, args.ec2)
-            else:
-                log.info("No --ec2 target given; artifact logged to MLflow only")
+        send_telegram(
+            f"*HN Signal — Model Updated* \u2705\n"
+            f"Version: `{version}`\n"
+            f"Precision: `{precision:.3f}`\n"
+            f"Recall: `{recall:.3f}`\n"
+            f"Training stories: {len(rows)} ({int(y.sum())} positive)"
+        )
 
         log.info("Training complete — version %s", version)
 

@@ -92,6 +92,28 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
 
+  # ── Trainer (daily at 03:00 UTC) ─────────────────────────────────────────────
+  trainer:
+    build:
+      context: .
+      dockerfile: trainer/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: hn_signal
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      BLOWUP_SCORE_THRESHOLD: ${BLOWUP_SCORE_THRESHOLD:-200}
+    volumes:
+      - models:/models
+      - .:/app
+
   # ── Monitor (daily at 09:00 UTC) ─────────────────────────────────────────────
   monitor:
     build:

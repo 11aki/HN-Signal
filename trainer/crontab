@@ -1,0 +1,1 @@
+0 3 * * * python /app/trainer/train.py --min-precision 0.35 --min-recall 0.35 --C 1.0 --threshold 0.5 --test-size 0.2
