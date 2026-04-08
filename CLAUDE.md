@@ -12,24 +12,19 @@ HN Signal is an automated ML pipeline that predicts which Hacker News stories wi
 ```bash
 cp .env.example .env   # fill in POSTGRES_PASSWORD, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
 docker-compose up -d
-docker-compose logs -f <service>   # collector | snapshotter | predictor | bot | monitor
+docker-compose logs -f <service>   # collector | snapshotter | predictor | bot | monitor | trainer
 ```
 
-**Train a model (local GPU machine, requires SSH tunnel to EC2 Postgres):**
+**Trigger a manual training run (on EC2):**
 ```bash
-ssh -L 5432:localhost:5432 ubuntu@<ec2-host>   # tunnel in a separate terminal
-
-python -m venv venv && source venv/bin/activate
-pip install -r trainer/requirements.txt
-
-# Train, evaluate against eval gate, and scp to EC2 if it passes:
-python trainer/train.py \
+docker compose exec trainer python trainer/train.py \
   --min-precision 0.35 --min-recall 0.35 \
-  --C 1.0 --threshold 0.5 --test-size 0.2 \
-  --ec2 ubuntu@<ec2-host>:/models/production.pkl
+  --C 1.0 --threshold 0.5 --test-size 0.2
+```
 
-# Train + MLflow logging only (no deploy):
-python trainer/train.py --min-precision 0.35 --min-recall 0.35
+The trainer also runs automatically on a daily cron schedule. Check logs with:
+```bash
+docker compose logs -f trainer
 ```
 
 **Run a single service manually:**
@@ -51,7 +46,7 @@ The pipeline has six services with strict separation:
 | **predictor** | EC2 | hourly :05 | Scores unpredicted stories using `production.pkl` |
 | **monitor** | EC2 | daily 09:00 UTC | Computes precision/recall, sends Telegram alert if degraded |
 | **bot** | EC2 | always-on | Responds to `/top`, `/status`, `/help` in Telegram |
-| **trainer** | local GPU | on-demand | Trains model, evaluates against eval gate, scp to EC2 |
+| **trainer** | EC2 | daily (cron) | Trains model, evaluates against eval gate, saves to shared volume |
 
 Data flow: `HN API → stories table → snapshots table → predictions table → Telegram bot`
 

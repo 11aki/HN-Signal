@@ -14,9 +14,10 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 30m
           script: |
             cd ~/hn-signal
             git pull origin main
-            docker system prune -af
             docker compose up --build -d
+            docker image prune -af
             docker compose ps

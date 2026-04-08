@@ -12,7 +12,8 @@
       "Bash(docker info:*)",
       "Bash(docker run:*)",
       "Bash(docker exec:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(mlflow ui:*)"
     ]
   }
 }

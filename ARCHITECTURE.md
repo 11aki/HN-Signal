@@ -4,8 +4,7 @@
 An automated ML system that predicts which Hacker News stories will hit the front page, retrains on real outcomes, and delivers early picks via Telegram.
 
 ## Infrastructure
-- **EC2 t3.small** — always on, runs all services via Docker Compose (~$15/month)
-- **Your PC (GPU)** — on-demand training, SSH tunnel into EC2 Postgres
+- **EC2 t2.micro (1GB RAM, 2GB swap)** — always on, runs all services via Docker Compose including trainer
 
 ## Components
 
@@ -35,14 +34,13 @@ An automated ML system that predicts which Hacker News stories will hit the fron
 - No personal re-ranking, no swipe buttons — just the model's picks
 - Also receives monitor alerts
 
-### 6. Trainer (Your PC, on demand)
-- SSH tunnel into EC2 Postgres, pulls labeled data
-- Trains locally with GPU
-- MLflow tracks experiments
+### 6. Trainer (EC2, daily at 03:00 UTC)
+- Runs as a Docker container on EC2 on a daily cron schedule
+- Pulls labeled data directly from the local Postgres container
 - Eval gate: new model must beat current production metrics on holdout set
-- Only then scp model artifact to EC2
-- Start with: frozen sentence-transformer embeddings + LogisticRegression
-- Later: fine-tune the transformer, add content features, try XGBoost/neural nets
+- Saves model artifact to the shared `models` Docker volume (read by predictor)
+- Sends Telegram notification on success or failure
+- Uses: frozen sentence-transformer embeddings (CPU) + LogisticRegression
 
 ## Database Schema (Postgres)
 
@@ -92,8 +90,8 @@ CREATE TABLE predictions (
 3. Features frozen at capture time — prevents data leakage in prediction
 4. Track precision/recall not just accuracy — catches degenerate models
 5. Eval gate before model push — prevents shipping bad models
-6. Train local, serve remote — cheap always-on serving, free GPU training
-7. Postgres shared_buffers capped at 256MB — leaves room for other containers on 2GB RAM
+6. Train on EC2 — all services co-located, no SSH tunnel or manual model transfers needed
+7. Postgres shared_buffers capped at 256MB — leaves room for other containers on 1GB RAM (+ 2GB swap)
 
 ## Build Order
 1. Docker Compose + Postgres schema
@@ -102,7 +100,7 @@ CREATE TABLE predictions (
 4. Predictor (needs a baseline model — start with random or simple heuristic)
 5. Telegram Bot
 6. Monitor
-7. Trainer (on PC)
+7. Trainer (on EC2, daily cron)
 
 ## Tech Stack
 - Python 3.11+
@@ -112,5 +110,5 @@ CREATE TABLE predictions (
 - scikit-learn (LogisticRegression to start)
 - MLflow (experiment tracking)
 - python-telegram-bot
-- cron (via system crontab or supercrond in Docker)
+- cron (via supercronic in Docker)
 - psycopg2 or asyncpg for Postgres access

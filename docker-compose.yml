@@ -24,7 +24,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Collector (every 15 min) ─────────────────────────────────────────────────
+  # ── Collector (hourly :00) ───────────────────────────────────────────────────
   collector:
     build:
       context: .
@@ -40,7 +40,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 
-  # ── Snapshotter (every 15 min) ───────────────────────────────────────────────
+  # ── Snapshotter (hourly :00) ─────────────────────────────────────────────────
   snapshotter:
     build:
       context: .
@@ -56,7 +56,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 
-  # ── Predictor (every 15 min, offset +5 min) ──────────────────────────────────
+  # ── Predictor (hourly :05) ───────────────────────────────────────────────────
   predictor:
     build:
       context: .
