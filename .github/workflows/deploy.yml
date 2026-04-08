@@ -16,8 +16,10 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           command_timeout: 30m
           script: |
+            set -e
             cd ~/hn-signal
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             docker compose up --build -d
             docker image prune -f
             docker compose ps
